@@ -1,8 +1,12 @@
 ##### Week 3 Homework #####
 ##### CSEC-380/480 Advanced Cybersecurity Automation - Kurt Wickboldt ####
 
-
-'''
+import requests
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+import os
+"""
 #1) 1 Points: Create a GitHub account with a new public repo titled "DePaul Cybersecurity Automation Test"
 Inside this repo:
     a: Create a readme file with the text "This is a sample readme"
@@ -15,13 +19,13 @@ Inside this repo:
     f: Submit the link to your repo in this assignment. 
        (Make sure your repo is public and readable to anyone. 
        The link should include your repo, not just your profile!)
-'''
+"""
 print(
     "1F. Link to GitHub Repo: https://github.com/Het-Kotadiya/DePaul-Cybersecurity-Automation-Test.git"
 )
 
 
-'''
+"""
 #2) 2 Points: During your pentest you find a website that you believe to be of high value:
               (https://my.cdm.depaul.edu/v2/Public/Schedule?Department=CSEC&CourseNumber=&Quarter=1&Year=2027)
 You decide to probe it to find all course information so you can use that information at a later date.
@@ -51,17 +55,55 @@ You must use BeautifulSoup for this function.
         ...
 
     NOTE: This problem is only to be done against the CDM URL.
-'''
+"""
 
 def get_courses(site_name):
     pass
-    # Print parsed courses
+    courses = []
+    response = requests.get(site_name, timeout=20).text
+
+    soup = BeautifulSoup(response, "html.parser")
+    schedule_section = soup.find("section", class_="Schedule")
+    for title in schedule_section.find_all("h3"):
+        course_title = title.get_text()
+        if course_title == 'Jarvis College of':
+            break
+        print(course_title)
+        next = title.find_next_sibling()
+
+        while next and next.name != "h3":
+            if next.name == "section" and "Schedule-Item" in next.get("class", []):
+                schedule_list = next.find("ul", class_="schedule-item--part")
+
+                if schedule_list:
+                    class_schedule = schedule_list.find_all("li")
+
+                    if len(class_schedule) >= 2:
+                        # day and time
+                        meeting_time = class_schedule[0].get_text(
+                            separator=" ", strip=True
+                        )
+
+                        # async course
+                        if meeting_time == "-" or meeting_time == "":
+                            meeting_time = "-"
+
+                        # class location
+                        location = class_schedule[1].get_text(separator=" ", strip=True)
+
+                        print(f"    {meeting_time}")
+                        print(f"    {location}")
+            next = next.find_next_sibling()
+    return courses
+
 
 print(f"Problem 2.2:")
-get_courses('https://my.cdm.depaul.edu/v2/Public/Schedule?Department=CSEC&CourseNumber=&Quarter=1&Year=2027')
+get_courses(
+    "https://my.cdm.depaul.edu/v2/Public/Schedule?Department=CSEC&CourseNumber=&Quarter=1&Year=2027"
+)
 
 
-'''
+"""
 #3) 2 Points: Create a function 'capture' that will query a webpage for a list of top URLs, and
 take a homepage screenshot for each of the top 10.  Use the following URL for the script:
 https://raw.githubusercontent.com/bensooter/URLchecker/master/top-1000-websites.txt
@@ -73,11 +115,24 @@ Note: Your script is expected to pull content directly from
 the URL meaning if the URL were to change, so would the results of your script.
 You may use any combination of OS, Selenium, Requests, and BeautifulSoup.
 If you have a reason to use a different library, please check with me first.
-'''
+"""
+
 
 def capture(url):
     top_ten = []
+    response = requests.get(url, timeout=10)
+    sites = [site.strip() for site in response.text.split("\n")]
+    top_ten = sites[:10]
+
+    browser = webdriver.Chrome()
+    for site in top_ten:
+        target_url = f"https://{site}"
+        browser.get(target_url)
+        site_name = site.split(".")[0]
+        screenshot_path = os.path.join(os.getcwd(), f'{site_name}.png')
+        browser.get_screenshot_as_file(screenshot_path)
     return top_ten
 
-url = 'https://raw.githubusercontent.com/bensooter/URLchecker/master/top-1000-websites.txt'
+
+url = "https://raw.githubusercontent.com/bensooter/URLchecker/master/top-1000-websites.txt"
 print(f"Problem 3: {capture(url)}")
